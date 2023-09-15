@@ -1,0 +1,9 @@
+{
+  "upstream_server": "8.8.8.8",
+  "blacklist": [
+    "youtube.com",
+    "vc.com",
+    "instagram.com"
+  ],
+  "error_response": "127.0.0.1"
+}
