@@ -16,7 +16,7 @@ int main() {
     printf("DNS proxy server listening on port %d...\n", port);
 
     while (1) {
-        request_client(sock, config.upstream_server);
+        request_client(sock, &config, is_blocked);
     }
 
     close(sock);

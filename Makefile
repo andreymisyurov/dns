@@ -1,5 +1,5 @@
 all:
-	gcc main.c parser/parser.c net/net.c -ljson-c -o dns.out
+	gcc main.c parser/parser.c net/net.c -ljson-c -lresolv -o dns.out
 	./dns.out
 
 clean:

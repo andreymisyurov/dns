@@ -41,3 +41,7 @@ void print_config(const Config *in_config) {
         printf("- %s\n", json_object_get_string(json_object_array_get_idx(in_config->blacklist, i)));
     }
 }
+
+bool is_blocked(const struct Config *in_config __attribute__((unused)), const char *in_name __attribute__((unused))) {
+    return true;
+}

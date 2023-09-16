@@ -29,16 +29,13 @@ int initialize_socket(int in_port) {
     return sock;
 }
 
-
-
-
-void request_client(int in_sock, const char* in_dns_server) {
+void request_client(int in_sock, const Config* conf, func_ptr is_blocked) {
     char buffer[BUFFER_SIZE] = {0};
     struct sockaddr_in client_address = {0};
     struct sockaddr_in dns_address = {
             .sin_family = AF_INET,
             .sin_port = htons(53),
-            .sin_addr.s_addr = inet_addr(in_dns_server)
+            .sin_addr.s_addr = inet_addr(conf->upstream_server)
     };
     socklen_t client_len = sizeof(client_address);
     int n = recvfrom(in_sock, buffer, BUFFER_SIZE, 0, (struct sockaddr*)&client_address, &client_len);
@@ -46,6 +43,21 @@ void request_client(int in_sock, const char* in_dns_server) {
         perror("Error on receiving");
         return;
     }
+
+    char requested_name[BUFFER_SIZE] = {0};
+    int len = dn_expand((unsigned char*)buffer, (unsigned char*)buffer + n,
+                        (const unsigned char*)buffer + DNS_HEADER_SIZE, requested_name, sizeof(requested_name));
+    printf("Requested domain: %s\n", requested_name);
+
+
+
+    if (is_blocked(conf, requested_name)) {
+        printf("You site is blocked");
+        return;
+    }
+
+
+
     int forward_sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (forward_sock < 0) {
         perror("Error opening forward socket");
