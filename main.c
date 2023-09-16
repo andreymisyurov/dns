@@ -1,19 +1,25 @@
 #include "parser/parser.h"
+#include "net/net.h"
 
 int main() {
     Config config;
-    if (read_config("config.json", &config) == 0) {
-        printf("Upstream Server: %s\n", config.upstream_server);
-        printf("Error Response: %s\n", config.error_response);
-
-        int blacklist_length = json_object_array_length(config.blacklist);
-        printf("Blacklist:\n");
-        for (int i = 0; i < blacklist_length; i++) {
-            printf("- %s\n", json_object_get_string(json_object_array_get_idx(config.blacklist, i)));
-        }
-    } else {
+    if (read_config("config.json", &config) != 0) {
         fprintf(stderr, "Failed to read configuration.\n");
+        return 1;
     }
+
+    print_config(&config);
+
+    int port = 5353;
+    int sock = initialize_socket(port);
+
+    printf("DNS proxy server listening on port %d...\n", port);
+
+    while (1) {
+        request_client(sock);
+    }
+
+    close(sock);
 
     return 0;
 }

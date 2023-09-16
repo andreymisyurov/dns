@@ -31,3 +31,13 @@ int read_config(const char* in_filename, Config* out_config) {
     fclose(file);
     return 0;
 }
+
+void print_config(const Config *in_config) {
+    printf("Upstream Server: %s\n", in_config->upstream_server);
+    printf("Error Response: %s\n", in_config->error_response);
+    int blacklist_length = json_object_array_length(in_config->blacklist);
+    printf("Blacklist:\n");
+    for (int i = 0; i < blacklist_length; ++i) {
+        printf("- %s\n", json_object_get_string(json_object_array_get_idx(in_config->blacklist, i)));
+    }
+}
