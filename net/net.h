@@ -12,6 +12,7 @@
 
 #define BUFFER_SIZE 512
 #define DNS_HEADER_SIZE 12
+#define LOCAL_ADDR "192.168.0.15"
 
 typedef bool (*func_ptr)(const Config *in_config, const char *in_name);
 
