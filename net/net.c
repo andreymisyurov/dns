@@ -49,14 +49,27 @@ void request_client(int in_sock, const Config* conf, func_ptr is_blocked) {
                         (const unsigned char*)buffer + DNS_HEADER_SIZE, requested_name, sizeof(requested_name));
     printf("Requested domain: %s\n", requested_name);
 
-
-
     if (is_blocked(conf, requested_name)) {
-        printf("You site is blocked");
+        printf("Domain is blocked: %s\n", requested_name);
+        DNS_HEADER* dns = (DNS_HEADER*)&buffer;
+        dns->qr         = 1;
+        dns->aa         = 1;
+        dns->rd         = 1;
+        dns->ra         = 1;
+        dns->rcode      = 3;
+        dns->ancount    = htons(0);
+        dns->nscount    = htons(0);
+        dns->arcount    = htons(0);
+
+        int response_length = sizeof(DNS_HEADER) + (n - sizeof(DNS_HEADER));
+        n = sendto(in_sock, buffer, response_length, 0, (struct sockaddr*)&client_address, client_len);
+
+        if (n < 0) {
+            perror("Error on sending NXDOMAIN response");
+            return;
+        }
         return;
     }
-
-
 
     int forward_sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (forward_sock < 0) {
