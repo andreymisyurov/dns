@@ -70,17 +70,33 @@ int send_nxdomain(DNS_HEADER *dns, ssize_t n) {
     return (int)(sizeof(DNS_HEADER) + (n - sizeof(DNS_HEADER)));
 }
 
-void request_client(int in_sock, const Config* conf, func_ptr is_blocked) {
+void handle_blocked_domain(int in_sock, char *buffer, ssize_t *n, const Config* conf, struct sockaddr_in *client_address, socklen_t client_len) {
+    DNS_HEADER *dns = (DNS_HEADER *) buffer;
+    int response_size = 0;
+    if(strcmp(conf->error_response, "nxdomain") == 0) {
+        printf(" sending NXDOMAIN...\n");
+        response_size = send_nxdomain(dns, *n);
+    } else if (strcmp(conf->error_response, "local address") == 0) {
+        printf(" sending local address...\n");
+        response_size = send_local_address(dns, *n);
+    } else {
+        printf(" not response...\n");
+        return;
+    }
+    *n = sendto(in_sock, buffer, response_size, 0, (struct sockaddr*)client_address, client_len);
+}
+
+void request_client(int in_sock, const Config* in_conf, func_ptr is_blocked) {
     char buffer[BUFFER_SIZE] = {0};
-    struct sockaddr_in client_address = {0};
+    struct sockaddr_in cl_address = {0};
     struct sockaddr_in dns_address = {
             .sin_family = AF_INET,
             .sin_port = htons(53),
-            .sin_addr.s_addr = inet_addr(conf->upstream_server)
+            .sin_addr.s_addr = inet_addr(in_conf->upstream_server)
     };
 
-    socklen_t client_len = sizeof(client_address);
-    ssize_t n = recvfrom(in_sock, buffer, BUFFER_SIZE, 0, (struct sockaddr*)&client_address, &client_len);
+    socklen_t cl_len = sizeof(cl_address);
+    ssize_t n = recvfrom(in_sock, buffer, BUFFER_SIZE, 0, (struct sockaddr*)&cl_address, &cl_len);
     if (n < 0) {
         perror("Error on receiving");
         return;
@@ -91,20 +107,9 @@ void request_client(int in_sock, const Config* conf, func_ptr is_blocked) {
                         (const unsigned char*)buffer + DNS_HEADER_SIZE, requested_name, sizeof(requested_name));
     printf("Requested domain: %s\n", requested_name);
 
-    if (is_blocked(conf, requested_name)) {
-        DNS_HEADER *dns = (DNS_HEADER *) &buffer;
+    if (is_blocked(in_conf, requested_name)) {
         printf("Domain %s is blocked:", requested_name);
-        if(strcmp(conf->error_response, "nxdomain") == 0) {
-            printf(" sending NXDOMAIN...\n");
-            n = sendto(in_sock, buffer, send_nxdomain(dns, n), 0, (struct sockaddr*)&client_address, client_len);
-        } else if (strcmp(conf->error_response, "local address") == 0) {
-            printf(" sending local address...\n");
-            n = sendto(in_sock, buffer, send_local_address(dns, n), 0, (struct sockaddr*)&client_address, client_len);
-        } else {
-            printf(" not response...\n");
-            return;
-        }
-
+        handle_blocked_domain(in_sock, buffer, &n, in_conf, &cl_address, cl_len);
         if (n < 0)
             perror("Error on sending response");
         return;
@@ -122,16 +127,16 @@ void request_client(int in_sock, const Config* conf, func_ptr is_blocked) {
         close(forward_sock);
         return;
     }
-    n = recvfrom(forward_sock, buffer, BUFFER_SIZE, 0, (struct sockaddr*)&dns_address, &client_len);
+    n = recvfrom(forward_sock, buffer, BUFFER_SIZE, 0, (struct sockaddr*)&dns_address, &cl_len);
     if (n < 0) {
         perror("Error on receiving from DNS server");
         close(forward_sock);
         return;
     }
     close(forward_sock);
-    n = sendto(in_sock, buffer, n, 0, (struct sockaddr*)&client_address, client_len);
+    n = sendto(in_sock, buffer, n, 0, (struct sockaddr*)&cl_address, cl_len);
     if (n < 0) {
-        perror("Error on sending");
+        perror("Error on sending to client");
         return;
     }
 }
