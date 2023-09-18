@@ -1,18 +1,42 @@
+/*
+ * File: parser.c
+ * Author: Andrey Misyurov
+ * Date: 15.09.23
+ * Description: The necessary functions for working with json file.
+ */
+
 #include "parser.h"
 
-int read_config(const char* in_filename, Config* out_config) {
-    FILE *file = fopen(in_filename, "r");
+/**
+ * Func for parsing JSON file.
+ *
+ * @param filename path to json file with configuration.
+ * @param config out-argument. A pointer on structure of configuration.
+ * @return 0 - successful. 1 - reading was failed.
+ */
+int read_config(const char* filename, Config* config) {
+    FILE *file = fopen(filename, "r");
     if (file == NULL) {
         perror("Failed to open config file");
         return 1;
     }
-
     fseek(file, 0, SEEK_END);
     size_t size = ftell(file);
     fseek(file, 0, SEEK_SET);
-
     char* buffer = malloc(size + 1);
-    fread(buffer, 1, size, file);
+    if (!buffer) {
+        perror("Failed to allocate memory");
+        fclose(file);
+        return 1;
+    }
+
+    size_t bytes_read = fread(buffer, 1, size, file);
+    if (bytes_read != size) {
+        perror("Failed to read config file");
+        free(buffer);
+        fclose(file);
+        return 1;
+    }
     buffer[size] = 0;
 
     json_object* parsed_json = json_tokener_parse(buffer);
@@ -22,26 +46,48 @@ int read_config(const char* in_filename, Config* out_config) {
         fclose(file);
         return 1;
     }
-
-    out_config->upstream_server = json_object_get_string(json_object_object_get(parsed_json, "upstream_server"));
-    out_config->error_response = json_object_get_string(json_object_object_get(parsed_json, "error_response"));
-    out_config->blacklist = json_object_object_get(parsed_json, "blacklist");
-
+    config->upstream_server = json_object_get_string(json_object_object_get(parsed_json, "upstream_server"));
+    config->error_response = json_object_get_string(json_object_object_get(parsed_json, "error_response"));
+    config->blacklist = json_object_object_get(parsed_json, "blacklist");
     free(buffer);
     fclose(file);
     return 0;
 }
 
-void print_config(const Config *in_config) {
-    printf("Upstream Server: %s\n", in_config->upstream_server);
-    printf("Error Response: %s\n", in_config->error_response);
-    int blacklist_length = json_object_array_length(in_config->blacklist);
+/**
+ * Printing a configuration to console.
+ *
+ * @param config A pointer on structure of configuration
+ */
+void print_config(const Config *config) {
+    printf("Upstream Server: %s\n", config->upstream_server);
+    printf("Error Response: %s\n", config->error_response);
+    size_t blacklist_length = json_object_array_length(config->blacklist);
     printf("Blacklist:\n");
     for (int i = 0; i < blacklist_length; ++i) {
-        printf("- %s\n", json_object_get_string(json_object_array_get_idx(in_config->blacklist, i)));
+        printf("- %s\n", json_object_get_string(json_object_array_get_idx(config->blacklist, i)));
     }
 }
 
-bool is_blocked(const struct Config *in_config __attribute__((unused)), const char *in_name __attribute__((unused))) {
-    return true;
+/**
+ * Check domain into the blacklist.
+ *
+ * @param config Pointer to the Config structure containing the blacklist.
+ * @param domain_name The domain name to check.
+ * @return true(domain name is blacked), false(domain name is resolved).
+ */
+bool is_blocked(const struct Config *config, const char *domain_name) {
+    if (!config->blacklist) {
+        return false;
+    }
+
+    size_t blacklist_length = json_object_array_length(config->blacklist);
+    for (int i = 0; i < blacklist_length; ++i) {
+        const char *blacklisted_domain = json_object_get_string(json_object_array_get_idx(config->blacklist, i));
+        if (0 == strcmp(domain_name, blacklisted_domain)) {
+            return true;
+        }
+    }
+
+    return false;
 }

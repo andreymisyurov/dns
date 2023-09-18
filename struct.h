@@ -1,9 +1,8 @@
-#ifndef _STRUCT_H
-#define _STRUCT_H
+#ifndef DNS_STRUCT_H
+#define DNS_STRUCT_H
 
 #include <json-c/json.h>
-#include <stdint.h>
-
+// Unterminated '#pragma pack (push, ...)' at end of file
 #pragma pack(push, 1)
 typedef struct DNS_HEADER{
     unsigned short id;
@@ -34,4 +33,4 @@ typedef struct Config {
     json_object* blacklist;
 } Config;
 
-#endif // _STRUCT_H
+#endif // DNS_STRUCT_H
