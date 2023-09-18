@@ -3,6 +3,7 @@
 This is a test task which is a simple DNS proxy server. </br>
 This app reads configuration from a JSON file, processes DNS queries </br>
 and can block certain domains.
+(PS you may correct error_response. It maybe "local address", "nxdomain" or "not response" or empty if you want)
 
 #### How to run:
 
@@ -15,6 +16,18 @@ To clean up the output files:
     make clean
 
 #### How to test:
+    DOCKER
+
+    - make docker_build
+    - make docker_run
+
+    then you can try use dig from your host machine:
+    - dig @YOUR_CONTAINER_IP -p 53 example.com
+
+
+### OR
+
+    you can test app on your host machine
 
     add or change str "nameserver 127.0.0.1"
     - sudo vim /etc/resolv.conf
